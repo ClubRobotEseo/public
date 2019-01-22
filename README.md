@@ -1,6 +1,7 @@
 Bienvenue sur le serveur de version du club robot de l'ESEO.
+============================================================
 
-Si vous vous êtes connecté avec le log 'public' (mot de passe : 'public'), vous pouvez accéder à :
+vous pouvez accéder à :
 
 - l'ensemble de nos codes sources (à l'exception éventuelle, à l'approche des coupes, des stratégies de haut niveau...!)
 - design hardware de nos cartes électroniques
