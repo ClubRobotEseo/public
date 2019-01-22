@@ -1,0 +1,298 @@
+/*
+ *  Club Robot ESEO 2006 - 2015
+ *  Game Hoover, ..., Krusty & Tiny, Pierre & Guy, Holly & Wood
+ *
+ *  Fichier : it.c
+ *  Package : Asser
+ *  Description : fonctions en it...
+ *  Auteur : Koubi  (2009) et Nirgal (2009) inspiré du code de Val' (2007), Herzaeone(2014)
+ *  Version 200904
+ */
+
+#define _IT_C
+
+#include "it.h"
+
+#include "QS/QS_lowLayer/QS_timer.h"
+#include "QS/QS_lowLayer/QS_ports.h"
+#include "QS/QS_hokuyo/hokuyo.h"
+#include "odometry.h"
+#include "copilot.h"
+#include "pilot.h"
+#include "supervisor.h"
+#include "warner.h"
+#include "joystick.h"
+#include "secretary.h"
+#include "debug.h"
+#include "main.h"
+#include "detection.h"
+#include "avoidance.h"
+#include "gyroscope.h"
+#include "detection_choc.h"
+#include "scan/scan.h"
+#include "scan/rotation_scan.h"
+#include "scan/scanDistri.h"
+
+typedef enum{
+	IT_STATE_NONE = 0,
+	IT_STATE_ODOMETRY,
+    IT_STATE_TELEMETER,
+	IT_STATE_SECRETARY,
+	IT_STATE_WARNER,
+	IT_STATE_JOYSTICK,
+	IT_STATE_AVOIDANCE,
+	IT_STATE_COPILOT,
+	IT_STATE_PILOT,
+	IT_STATE_SUPERVISOR,
+	IT_STATE_MAIN,
+	IT_STATE_HOKUYO,
+	IT_STATE_SCAN,
+	IT_STATE_SCAN_CORNER,
+	IT_STATE_DETECTION,
+	IT_STATE_CHOC_DETECTION,
+	IT_STATE_DEBUG,
+	IT_STATE_LCD
+}it_state_e;
+
+Uint16 IT_counter = 0;
+
+
+void IT_test_state(time32_t time_begin, it_state_e it_state, bool_e *over_time);
+static void display_led(void);
+
+void IT_init(void)
+{
+	//Et c'est parti pour les it !!!
+	//Tache d'interruption principale...
+	TIMER_init();
+
+	//Note : run_us 5000 est beaucoup plus précis que run tout court à 5...
+	#if USE_GYROSCOPE
+		TIMER1_run_us(1000);		// IT du gyro
+	#endif
+	#if DETECTION_CHOC
+		TIMER5_run_us(20000);
+	#endif
+	TIMER2_run_us(1000*PERIODE_IT_ASSER);			//IT trajectoire et Correcteur
+	global.debug.recouvrement_IT = FALSE;
+	TIMER5_run_us(1000);
+}
+
+
+void _ISR _T1Interrupt(void)
+{
+	#if USE_GYROSCOPE
+		bool_e trash;
+		GYRO_get_speed_rotation(&trash, FALSE);	//Acquisition gyro, non suivie d'une exploitation...
+	#endif
+	TIMER1_AckIT();
+}
+
+void _ISR _T5Interrupt(void)
+{
+	#if DETECTION_CHOC
+	DETECTION_CHOC_process_it_tim5();
+	#endif
+
+	#if SCAN_BLOC
+	//SCAN_BLOC_process_it();
+	#endif
+
+	ODOMETRY_update_1ms();
+
+	TIMER5_AckIT();
+}
+
+//TEST non concluant réalisé en 2009 : faire l'odométrie plus souvent (toute les 1ms...)
+//mais cela change la vitesse_translation_reelle mesurée... REFLECHIR...
+//contactez Samuel ! Ceci est plein de subtilités à la noix de coco...
+//je conseille le passage à 1ms que si on passe TOUTE l'IT à cette période... donc que sur un micro plus puissant que le dsPIC30F6010A...
+//(car l'IT actuelle peut durer 1ms d'éxécution !)
+
+volatile static global_data_storage_t g2;
+
+									#ifdef X86
+										void fonction_it(void)
+									#else
+//Sur interruption timer 1...
+void _ISR _T2Interrupt()
+									#endif
+{
+	static Uint16 led_display_it = 0;
+	time32_t begin_it_time = global.absolute_time;
+	bool_e first_overtime = FALSE;
+	GPIO_ResetBits(LED_USER); //Permet de visualiser a l'oscillo le temps de passage dans l'IT
+	TIMER2_AckIT(); /* interruption traitée */
+
+	if(global.flags.match_started){
+		IT_counter++;
+	}
+	//A FAIRE EN TOUT DEBUT D'IT POUR AVOIR UNE VITESSE LA PLUS CONSTANTE POSSIBLE...
+	ODOMETRY_update_5ms();
+	IT_test_state(begin_it_time, IT_STATE_ODOMETRY, &first_overtime);
+
+#if SCAN_BORDURE
+    TELEMETER_process_it();
+    IT_test_state(begin_it_time, IT_STATE_TELEMETER, &first_overtime);
+#endif
+
+	//Sauvegarde de l'état du système, en mode debug...
+	SECRETARY_process_it();
+	IT_test_state(begin_it_time, IT_STATE_SECRETARY, &first_overtime);
+
+	WARNER_process_it();	//MAJ des avertisseurs
+	IT_test_state(begin_it_time, IT_STATE_WARNER, &first_overtime);
+
+	JOYSTICK_process_it();
+	IT_test_state(begin_it_time, IT_STATE_JOYSTICK, &first_overtime);
+
+	AVOIDANCE_process_it();
+	IT_test_state(begin_it_time, IT_STATE_AVOIDANCE, &first_overtime);
+
+	COPILOT_process_it();
+	IT_test_state(begin_it_time, IT_STATE_COPILOT, &first_overtime);
+
+	PILOT_process_it();
+	IT_test_state(begin_it_time, IT_STATE_PILOT, &first_overtime);
+
+	SUPERVISOR_process_it();
+	IT_test_state(begin_it_time, IT_STATE_SUPERVISOR, &first_overtime);
+
+	MAIN_process_it(PERIODE_IT_ASSER);
+	IT_test_state(begin_it_time, IT_STATE_MAIN, &first_overtime);
+
+	#if USE_HOKUYO
+		HOKUYO_processIt(PERIODE_IT_ASSER);
+	#endif
+
+	IT_test_state(begin_it_time, IT_STATE_HOKUYO, &first_overtime);
+
+
+    DEBUG_process_it();
+
+    #if SCAN
+		SCAN_process_it();
+		IT_test_state(begin_it_time, IT_STATE_SCAN, &first_overtime);
+	#endif
+
+	#if SCAN_ROTATION
+		SCAN_CORNER_process_it();
+		IT_test_state(begin_it_time, IT_STATE_SCAN_CORNER, &first_overtime);
+	#endif
+
+	#if USE_SCAN_DISTRI
+		SCAN_DISTRI_processIt(PERIODE_IT_ASSER);
+	#endif
+
+	#if DETECTION_CHOC
+		DETECTION_CHOC_process_it_tim2();
+		IT_test_state(begin_it_time, IT_STATE_CHOC_DETECTION, &first_overtime);
+	#endif
+
+    //DEBUG_process_it();
+	IT_test_state(begin_it_time, IT_STATE_DEBUG, &first_overtime);
+
+	// Affichage des leds toutes les 500ms
+	led_display_it++;
+	if(led_display_it >= 500){
+		display_led();
+		led_display_it = 0;
+	}
+
+	g2 = global;
+	if(TIMER2_getITStatus()){	//L'IT est trop longue ! il y a recouvrement !!!
+		global.debug.recouvrement_IT = TRUE;
+		global.debug.recouvrement_IT_time = global.absolute_time - begin_it_time;
+	}
+	GPIO_SetBits(LED_USER);  //Permet de visualiser a l'oscillo le temps de passage dans l'IT
+}
+
+
+
+
+Uint8 compteur;
+																				//gestion des leds
+static void display_led(void)
+{
+	#if MODE_PRINTF_TABLEAU
+		//Module permettant de visualiser après coup une grande série de valeur quelconque pour chaque IT...
+		//dès qu'on est en état ARRET, on affiche les DEBUG_TABLEAU_TAILLE valeurs enregistrées.... c'est long, mais très utile !
+		if(global.arrived == ROBOT_ARRIVE)
+		{
+			global.mode_printf_tableau_enregistrer = FALSE;
+			for(global.debug_index_read = 0; global.debug_index_read < DEBUG_TABLEAU_TAILLE; global.debug_index_read++)
+				printf("%d > %d \t %d \t %d \n", global.debug_index_read, global.debug_tableau[global.debug_index_read].x, global.debug_tableau[global.debug_index_read].y, global.debug_tableau[global.debug_index_read].teta);
+			global.mode_printf_tableau_enregistrer = TRUE;
+		}
+	#endif
+
+	compteur++;
+	if(compteur > 7)
+		compteur=0;
+
+		//Explications :
+		// LED_RUN 		: clignote quand le code tourne, reste à 1 en fin de match
+		// LED_CAN 		: change d'état à chaque réception de message CAN
+		// LED_UART 	: change d'état à chaque réception de caractère UART
+		// LED_USER 	: à 1 pendant l'exécution de l'IT, à 0 sinon...
+		// LED_SELFTEST	: clignote tant que le selftest n'est pas validé
+		// LED_ERROR 	: clignote lorsque ROBOT_ERREUR
+	switch (SUPERVISOR_get_state())
+	{
+		case SUPERVISOR_IDLE:
+			//no break;
+		case SUPERVISOR_TRAJECTORY :
+			if(compteur >= 4)
+				GPIO_ResetBits(LED_RUN);
+			else
+				GPIO_SetBits(LED_RUN);
+
+			GPIO_ResetBits(LED_ERROR);
+		break;
+		case SUPERVISOR_ERROR :
+			if(compteur % 2)
+			{
+				GPIO_ResetBits(LED_ERROR);
+				GPIO_ResetBits(LED_RUN);
+			}
+			else
+			{
+				GPIO_SetBits(LED_ERROR);
+				GPIO_SetBits(LED_RUN);
+			}
+		break;
+
+		case SUPERVISOR_MATCH_ENDED :
+			GPIO_ResetBits(LED_ERROR);
+			GPIO_SetBits(LED_RUN);
+		break;
+
+		default:
+		break;
+	}
+
+	if(SECRETARY_is_selftest_validated())
+		GPIO_SetBits(LED_SELFTEST);
+	else
+	{
+		if(compteur >= 4)
+			GPIO_ResetBits(LED_SELFTEST);
+		else
+			GPIO_SetBits(LED_SELFTEST);
+	}
+}
+
+void IT_test_state(time32_t time_begin, it_state_e it_state, bool_e* over_time){
+	if(*over_time)
+		return;
+
+	if(global.absolute_time - time_begin > 5){
+		global.debug.recouvrement_section = it_state;
+		*over_time = TRUE;
+	}
+}
+
+Uint16 IT_get_counter(){
+	return IT_counter;
+}
+

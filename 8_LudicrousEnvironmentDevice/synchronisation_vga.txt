@@ -1,0 +1,9 @@
+Résolution 800 * 480
+Horizontal: front porch=40, sync width=48, back porch=40, display=800
+Vertical: front porch=13, sync width=3, back porch=29, display=480
+Dot clock: 40 MHz
+
+
+Résolution 640*480
+Horizontal: front porch=16, sync width=96, back porch=48, display=640
+Vertical: front porch=11, sync width=3, back porch=32, display=480

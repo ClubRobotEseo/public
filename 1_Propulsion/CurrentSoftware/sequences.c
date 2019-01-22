@@ -1,0 +1,265 @@
+
+#define _SEQUENCES_C
+
+#include "sequences.h"
+#include "roadmap.h"
+#include "QS/QS_CANmsgList.h"
+#include "QS/QS_who_am_i.h"
+#include "QS/QS_maths.h"
+#include "odometry.h"
+#include "warner.h"
+#include "copilot.h"
+
+//border_mode peut être BORDER_MODE_WITH_UPDATE_POSITION ou BORDER_MODE
+void SEQUENCES_rush_in_the_wall(Sint16 angle, way_e way, PROP_speed_e rush_speed, acknowledge_e acquittement, Sint32 far_point_x, Sint32 far_point_y, border_mode_e border_mode, corrector_e corrector, Uint8 idTraj)
+{
+	Sint16 cos_a, sin_a;
+	//on va vers l'angle demandé.
+	ROADMAP_add_order(TRAJECTORY_ROTATION, 0,0, angle, PROP_ABSOLUTE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+	if(angle < 0)
+		angle += 2*PI4096;
+
+	COS_SIN_16384_get((Sint32)(angle)*4, &cos_a, &sin_a);
+	cos_a /= 4;
+	sin_a /= 4;
+
+
+	if(way==BACKWARD)//RECULER
+	{
+		cos_a = -cos_a;
+		sin_a = -sin_a;
+	}
+
+	//le point obtenu cos / sin est situé à 2048 mm de notre position, et droit devant nous !
+	if(far_point_x || far_point_y)
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, far_point_x, far_point_y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, way, border_mode, PROP_END_AT_POINT, rush_speed, acquittement, corrector, AVOID_DISABLED, idTraj);
+	else
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, cos_a/4, sin_a/4, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, way, border_mode, PROP_END_AT_POINT, rush_speed, acquittement, corrector, AVOID_DISABLED, idTraj);
+}
+
+
+void SEQUENCES_calibrate(void)
+{
+	Sint16 x, y, teta;
+	// Sint16 way;
+
+	color_e color;
+	color = ODOMETRY_get_color();
+	if(global.flags.virtual_mode)
+	{
+		if(QS_WHO_AM_I_get() == BIG_ROBOT){
+			if(color == BOT_COLOR)
+				ODOMETRY_set(BIG_BOT_COLOR_CALIBRATION_X, BIG_BOT_COLOR_CALIBRATION_Y, BIG_BOT_COLOR_CALIBRATION_TETA);
+			else
+				ODOMETRY_set(BIG_TOP_COLOR_CALIBRATION_X, BIG_TOP_COLOR_CALIBRATION_Y, BIG_TOP_COLOR_CALIBRATION_TETA);
+			COPILOT_reset_absolute_destination();
+		}else{
+			if(color == BOT_COLOR)
+				ODOMETRY_set(SMALL_BOT_COLOR_CALIBRATION_X, SMALL_BOT_COLOR_CALIBRATION_Y, SMALL_BOT_COLOR_CALIBRATION_TETA);
+			else
+				ODOMETRY_set(SMALL_TOP_COLOR_CALIBRATION_X, SMALL_TOP_COLOR_CALIBRATION_Y, SMALL_TOP_COLOR_CALIBRATION_TETA);
+			COPILOT_reset_absolute_destination();
+		}
+		WARNER_inform(WARNING_CALIBRATION_FINISHED, NO_ERROR);
+	}
+	else
+	{
+		if(global.flags.match_started)
+			return;	//Pas de calibration si le match est démarré !!! (sauf en mode simu)
+		if(QS_WHO_AM_I_get() == BIG_ROBOT)
+		{
+			//2019
+			// 1 - Calage en Y en arrière
+			if(color == BOT_COLOR) {
+				teta = -PI4096/2;
+				y = -2000;
+			} else {
+				teta = PI4096/2;
+				y = 5000;
+			}
+			SEQUENCES_rush_in_the_wall(teta, FORWARD, 16, NO_ACKNOWLEDGE, 0, y, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 2 - Recule en position de calibration
+			if(color == BOT_COLOR) {
+				x = BIG_BOT_COLOR_CALIBRATION_X;
+				y = BIG_BOT_COLOR_CALIBRATION_Y;
+			} else {
+				x = BIG_TOP_COLOR_CALIBRATION_X;
+				y = BIG_TOP_COLOR_CALIBRATION_Y;
+			}
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+			// 3 - Rotation vers l'angle de calibration
+			if(color == BOT_COLOR)
+				teta = BIG_BOT_COLOR_CALIBRATION_TETA;
+			else
+				teta = BIG_TOP_COLOR_CALIBRATION_TETA;
+			ROADMAP_add_order(TRAJECTORY_ROTATION, 0, 0, teta, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+
+			//2018
+			/*// 1 - Calage en Y en arrière
+			if(color == BOT_COLOR) {
+				teta = -PI4096/2;
+				y = -2000;
+			} else {
+				teta = PI4096/2;
+				y = 5000;
+			}
+			SEQUENCES_rush_in_the_wall(teta, FORWARD, 16, NO_ACKNOWLEDGE, 0, y, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 2 - Avance en y = 550
+			if(color == BOT_COLOR)
+				y = 550 - BIG_CALIBRATION_BACKWARD_BORDER_DISTANCE;
+			else
+				y = -(550 - BIG_CALIBRATION_BACKWARD_BORDER_DISTANCE);
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, 0, y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+			// 3 - Recule en x = 200 en fast
+			x = -292; // = - ( start_pos - 200 )
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, 0, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+			// 4 - Calage en X en arrière
+			SEQUENCES_rush_in_the_wall(0, BACKWARD, 16, NO_ACKNOWLEDGE, -2000, 0, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 5 - Avance en x = 638
+			x = 638 - BIG_CALIBRATION_BACKWARD_BORDER_DISTANCE;
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, 0, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+			// 6 - Avance en x = 447 ; y = 194
+			if(color == BOT_COLOR) {
+				x = BIG_BOT_COLOR_CALIBRATION_X;
+				y = BIG_BOT_COLOR_CALIBRATION_Y;
+			} else {
+				x = BIG_TOP_COLOR_CALIBRATION_X;
+				y = BIG_TOP_COLOR_CALIBRATION_Y;
+			}
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+			// 7 - Rotation en teta = -8386
+			if(color == BOT_COLOR)
+				teta = BIG_BOT_COLOR_CALIBRATION_TETA;
+			else
+				teta = BIG_TOP_COLOR_CALIBRATION_TETA;
+			ROADMAP_add_order(TRAJECTORY_ROTATION, 0, 0, teta, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+			*/
+
+
+		}else{ // SMALL ROBOT
+
+			//2019
+			// 1 - Calage en Y en arrière
+			if(color == BOT_COLOR) {
+				teta = -PI4096/2;
+				y = -2000;
+			} else {
+				teta = PI4096/2;
+				y = 5000;
+			}
+			SEQUENCES_rush_in_the_wall(teta, FORWARD, 16, NO_ACKNOWLEDGE, 0, y, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 2 - Recule en position de calibration
+			if(color == BOT_COLOR) {
+				x = SMALL_BOT_COLOR_CALIBRATION_X;
+				y = SMALL_BOT_COLOR_CALIBRATION_Y;
+			} else {
+				x = SMALL_TOP_COLOR_CALIBRATION_X;
+				y = SMALL_TOP_COLOR_CALIBRATION_Y;
+			}
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 16, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+			// 3 - Rotation vers l'angle de calibration
+			if(color == BOT_COLOR)
+				teta = SMALL_BOT_COLOR_CALIBRATION_TETA;
+			else
+				teta = SMALL_TOP_COLOR_CALIBRATION_TETA;
+			ROADMAP_add_order(TRAJECTORY_ROTATION, 0, 0, teta, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+
+			//2018
+			/*// 1 - Calage en Y en avant en vert / en arrière en orange (contre la première bordure en calage Y, car le calage avant est moisi pour un bon angle)
+			if(color == BOT_COLOR) {
+				y = -2000;
+				way = FORWARD;
+			} else {
+				y = 5000;
+				way = BACKWARD;
+			}
+			SEQUENCES_rush_in_the_wall(-PI4096/2, way, 16, NO_ACKNOWLEDGE, 0, y, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 2 - Avance en y = 550
+			if(color == BOT_COLOR) {
+				y = 550 - SMALL_CALIBRATION_FORWARD_BORDER_DISTANCE;
+				way = BACKWARD;
+			} else {
+				y = -(550 - SMALL_CALIBRATION_BACKWARD_BORDER_DISTANCE);
+				way = FORWARD;
+			}
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, 0, y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, way, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+			// 3 - Calage en X en arrière
+			SEQUENCES_rush_in_the_wall(0, BACKWARD, 16, NO_ACKNOWLEDGE, -2000, 0, BORDER_MODE_WITH_UPDATE_POSITION, CORRECTOR_ENABLE, 0);
+
+			// 4 - Avance en x = 638
+			x = 150 - SMALL_CALIBRATION_BACKWARD_BORDER_DISTANCE;
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, 0, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+
+			// 5 - Avance en x = 447 ; y = 194
+			if(color == BOT_COLOR) {
+				x = SMALL_BOT_COLOR_CALIBRATION_X;
+				y = SMALL_BOT_COLOR_CALIBRATION_Y;
+				way = FORWARD;
+			} else {
+				x = SMALL_TOP_COLOR_CALIBRATION_X;
+				y = SMALL_TOP_COLOR_CALIBRATION_Y;
+				way = BACKWARD;
+			}
+			ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, way, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+
+			// 6 - Rotation en teta
+			if(color == BOT_COLOR)
+				teta = SMALL_BOT_COLOR_CALIBRATION_TETA;
+			else
+				teta = SMALL_TOP_COLOR_CALIBRATION_TETA;
+			ROADMAP_add_order(TRAJECTORY_ROTATION, 0, 0, teta, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, 48, ACKNOWLEDGE_CALIBRATION, CORRECTOR_ENABLE, AVOID_DISABLED, 1);
+			*/
+
+		}
+	}
+}
+
+void SEQUENCES_selftest(void)
+{
+	Sint16 cos_a, sin_a;
+	Sint32 x, y;
+	COS_SIN_16384_get((Sint32)(global.position.teta)*4, &cos_a, &sin_a);
+	cos_a /= 4;	//->[mm*4096]
+	sin_a /= 4;	//->[mm*4096]
+
+	//Calcul du point qui est 10cm devant nous...  (en relatif, donc on calcule simplement la part de x et de y pour une distance de 10cm)...
+	x = (Sint32)cos_a;
+	x = (x*100)/4096;
+	y = (Sint32)sin_a;
+	y = (y*100)/4096;
+
+	//Seul le premier mouvement est considéré comme le selftest (il peut réussir ou échouer...)
+	//Le second mouvement permet de revenir à la position précédente.
+	if(QS_WHO_AM_I_get() == BIG_ROBOT){
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, -x, -y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, SLOW_TRANSLATION_AND_FAST_ROTATION, ACKNOWLEDGE_SELFTEST, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, SLOW_TRANSLATION_AND_FAST_ROTATION, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	}else{
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, x, y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, SLOW_TRANSLATION_AND_FAST_ROTATION, ACKNOWLEDGE_SELFTEST, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+		ROADMAP_add_order(TRAJECTORY_TRANSLATION, -x, -y, 0, PROP_RELATIVE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, SLOW_TRANSLATION_AND_FAST_ROTATION, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	}
+}
+
+void SEQUENCES_trajectory_for_test_coefs(void)
+{
+	ROADMAP_add_order(TRAJECTORY_AUTOMATIC_CURVE, 1000, 2000, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, FORWARD, NOT_BORDER_MODE, PROP_END_AT_POINT, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	ROADMAP_add_order(TRAJECTORY_AUTOMATIC_CURVE, 1200, 1800, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_BRAKE, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	ROADMAP_add_order(TRAJECTORY_AUTOMATIC_CURVE, 1100, 1250, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_BRAKE, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	ROADMAP_add_order(TRAJECTORY_AUTOMATIC_CURVE, 800, 750, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_BRAKE, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	ROADMAP_add_order(TRAJECTORY_AUTOMATIC_CURVE, 1000, 500, 0, PROP_ABSOLUTE, PROP_END_OF_BUFFER, BACKWARD, NOT_BORDER_MODE, PROP_END_AT_BRAKE, FAST, NO_ACKNOWLEDGE, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+	ROADMAP_add_order(TRAJECTORY_ROTATION, 0,0, PI4096/2, PROP_ABSOLUTE, PROP_END_OF_BUFFER, ANY_WAY, NOT_BORDER_MODE, PROP_END_AT_POINT, FAST, ACKNOWLEDGE_TRAJECTORY_FOR_TEST_COEFS, CORRECTOR_ENABLE, AVOID_DISABLED, 0);
+}

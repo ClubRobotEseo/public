@@ -1,0 +1,202 @@
+#
+# Affectation des broches du FPGA sur la carte Digilent Nexys3.
+#
+# Supprimez les ports dont vous n'avez pas besoin.
+#
+# Voir également le fichier Nexys3.vhd contenant un exemple d'entité principale.
+#
+
+# -----------------------------------------------------------------------------
+# Boutons-poussoirs
+# -----------------------------------------------------------------------------
+
+NET "reset"          LOC = B8    | IOSTANDARD = LVCMOS33;
+#NET "btnU"          LOC = A8    | IOSTANDARD = LVCMOS33;
+#NET "btnL"          LOC = C4    | IOSTANDARD = LVCMOS33;
+#NET "btnD"          LOC = C9    | IOSTANDARD = LVCMOS33;
+#NET "btnR"          LOC = D9    | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Interrupteurs à glissière
+# -----------------------------------------------------------------------------
+
+NET "sw<0>"         LOC = T10   | IOSTANDARD = LVCMOS33;
+NET "sw<1>"         LOC = T9    | IOSTANDARD = LVCMOS33;
+NET "sw<2>"         LOC = V9    | IOSTANDARD = LVCMOS33;
+NET "sw<3>"         LOC = M8    | IOSTANDARD = LVCMOS33;
+NET "sw<4>"         LOC = N8    | IOSTANDARD = LVCMOS33;
+NET "sw<5>"         LOC = U8    | IOSTANDARD = LVCMOS33;
+NET "sw<6>"         LOC = V8    | IOSTANDARD = LVCMOS33;
+NET "sw<7>"         LOC = T5    | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Voyants
+# -----------------------------------------------------------------------------
+
+#NET "led<0>"        LOC = U16   | IOSTANDARD = LVCMOS33;
+#NET "led<1>"        LOC = V16   | IOSTANDARD = LVCMOS33;
+#NET "led<2>"        LOC = U15   | IOSTANDARD = LVCMOS33;
+#NET "led<3>"        LOC = V15   | IOSTANDARD = LVCMOS33;
+#NET "led<4>"        LOC = M11   | IOSTANDARD = LVCMOS33;
+#NET "led<5>"        LOC = N11   | IOSTANDARD = LVCMOS33;
+#NET "led<6>"        LOC = R11   | IOSTANDARD = LVCMOS33;
+#NET "led<7>"        LOC = T11   | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Port VGA
+# -----------------------------------------------------------------------------
+
+NET "vgaRed<0>"     LOC = U7    | IOSTANDARD = LVCMOS33;
+NET "vgaRed<1>"     LOC = V7    | IOSTANDARD = LVCMOS33;
+NET "vgaRed<2>"     LOC = N7    | IOSTANDARD = LVCMOS33;
+NET "vgaGreen<0>"   LOC = P8    | IOSTANDARD = LVCMOS33;
+NET "vgaGreen<1>"   LOC = T6    | IOSTANDARD = LVCMOS33;
+NET "vgaGreen<2>"   LOC = V6    | IOSTANDARD = LVCMOS33;
+NET "vgaBlue<1>"    LOC = R7    | IOSTANDARD = LVCMOS33;
+NET "vgaBlue<2>"    LOC = T7    | IOSTANDARD = LVCMOS33;
+NET "hsync_n"    		LOC = N6    | IOSTANDARD = LVCMOS33;
+NET "vsync_n"    		LOC = P7    | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Afficheurs 7 segments
+# -----------------------------------------------------------------------------
+
+NET "dispSeg_n<0>"  LOC = T17   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<1>"  LOC = T18   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<2>"  LOC = U17   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<3>"  LOC = U18   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<4>"  LOC = M14   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<5>"  LOC = N14   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<6>"  LOC = L14   | IOSTANDARD = LVCMOS33;
+NET "dispSeg_n<7>"  LOC = M13   | IOSTANDARD = LVCMOS33;
+
+NET "dispAn_n<0>"   LOC = N16   | IOSTANDARD = LVCMOS33;
+NET "dispAn_n<1>"   LOC = N15   | IOSTANDARD = LVCMOS33;
+NET "dispAn_n<2>"   LOC = P18   | IOSTANDARD = LVCMOS33;
+NET "dispAn_n<3>"   LOC = P17   | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Interfaces pour souris et claviers PS/2
+# -----------------------------------------------------------------------------
+
+#NET "ps2MouseData"      LOC = K14   | IOSTANDARD = LVCMOS33 | PULLUP;
+#NET "ps2MouseClk"       LOC = L13   | IOSTANDARD = LVCMOS33 | PULLUP;
+
+#NET "ps2KeyboardData"   LOC = J13   | IOSTANDARD = LVCMOS33 | PULLUP;
+#NET "ps2KeyboardClk"    LOC = L12   | IOSTANDARD = LVCMOS33 | PULLUP;
+
+# -----------------------------------------------------------------------------
+# Interface série asynchrone
+# -----------------------------------------------------------------------------
+
+#NET "uartRx"        LOC = N17   | IOSTANDARD = LVCMOS33;
+#NET "uartTx"        LOC = N18   | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Horloge
+# -----------------------------------------------------------------------------
+
+NET "clk"           LOC = V10   | IOSTANDARD = LVCMOS33;
+NET "clk" TNM_NET = sys_clk_pin;
+TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 100000 kHz;
+
+# -----------------------------------------------------------------------------
+# Mémoire externe en accès asynchrone
+# -----------------------------------------------------------------------------
+
+NET "memOE_n"       LOC = L18   | IOSTANDARD = LVCMOS33;
+NET "memWR_n"       LOC = M16   | IOSTANDARD = LVCMOS33;
+NET "memAdv_n"      LOC = H18   | IOSTANDARD = LVCMOS33;
+NET "memClk"        LOC = R10   | IOSTANDARD = LVCMOS33;
+
+NET "memAdr<1>"     LOC = K18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<2>"     LOC = K17   | IOSTANDARD = LVCMOS33;
+NET "memAdr<3>"     LOC = J18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<4>"     LOC = J16   | IOSTANDARD = LVCMOS33;
+NET "memAdr<5>"     LOC = G18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<6>"     LOC = G16   | IOSTANDARD = LVCMOS33;
+NET "memAdr<7>"     LOC = H16   | IOSTANDARD = LVCMOS33;
+NET "memAdr<8>"     LOC = H15   | IOSTANDARD = LVCMOS33;
+NET "memAdr<9>"     LOC = H14   | IOSTANDARD = LVCMOS33;
+NET "memAdr<10>"    LOC = H13   | IOSTANDARD = LVCMOS33;
+NET "memAdr<11>"    LOC = F18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<12>"    LOC = F17   | IOSTANDARD = LVCMOS33;
+NET "memAdr<13>"    LOC = K13   | IOSTANDARD = LVCMOS33;
+NET "memAdr<14>"    LOC = K12   | IOSTANDARD = LVCMOS33;
+NET "memAdr<15>"    LOC = E18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<16>"    LOC = E16   | IOSTANDARD = LVCMOS33;
+NET "memAdr<17>"    LOC = G13   | IOSTANDARD = LVCMOS33;
+NET "memAdr<18>"    LOC = H12   | IOSTANDARD = LVCMOS33;
+NET "memAdr<19>"    LOC = D18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<20>"    LOC = D17   | IOSTANDARD = LVCMOS33;
+NET "memAdr<21>"    LOC = G14   | IOSTANDARD = LVCMOS33;
+NET "memAdr<22>"    LOC = F14   | IOSTANDARD = LVCMOS33;
+NET "memAdr<23>"    LOC = C18   | IOSTANDARD = LVCMOS33;
+NET "memAdr<24>"    LOC = C17   | IOSTANDARD = LVCMOS33;
+NET "memAdr<25>"    LOC = F16   | IOSTANDARD = LVCMOS33;
+NET "memAdr<26>"    LOC = F15   | IOSTANDARD = LVCMOS33;
+
+NET "memData<0>"    LOC = R13   | IOSTANDARD = LVCMOS33;
+NET "memData<1>"    LOC = T14   | IOSTANDARD = LVCMOS33;
+NET "memData<2>"    LOC = V14   | IOSTANDARD = LVCMOS33;
+NET "memData<3>"    LOC = U5    | IOSTANDARD = LVCMOS33;
+NET "memData<4>"    LOC = V5    | IOSTANDARD = LVCMOS33;
+NET "memData<5>"    LOC = R3    | IOSTANDARD = LVCMOS33;
+NET "memData<6>"    LOC = T3    | IOSTANDARD = LVCMOS33;
+NET "memData<7>"    LOC = R5    | IOSTANDARD = LVCMOS33;
+NET "memData<8>"    LOC = N5    | IOSTANDARD = LVCMOS33;
+NET "memData<9>"    LOC = P6    | IOSTANDARD = LVCMOS33;
+NET "memData<10>"   LOC = P12   | IOSTANDARD = LVCMOS33;
+NET "memData<11>"   LOC = U13   | IOSTANDARD = LVCMOS33;
+NET "memData<12>"   LOC = V13   | IOSTANDARD = LVCMOS33;
+NET "memData<13>"   LOC = U10   | IOSTANDARD = LVCMOS33;
+NET "memData<14>"   LOC = R8    | IOSTANDARD = LVCMOS33;
+NET "memData<15>"   LOC = T8    | IOSTANDARD = LVCMOS33;
+
+NET "ramCS_n"       LOC = L15   | IOSTANDARD = LVCMOS33;
+NET "ramCRE"        LOC = M18   | IOSTANDARD = LVCMOS33;
+NET "ramUB_n"       LOC = K15   | IOSTANDARD = LVCMOS33;
+NET "ramLB_n"       LOC = K16   | IOSTANDARD = LVCMOS33;
+
+# -----------------------------------------------------------------------------
+# Connecteurs d'extension Pmod.
+# Décommentez les lignes utilisées et renommez ces ports
+# en fonction de leur utilisation.
+# -----------------------------------------------------------------------------
+
+ NET "parallel_datas<0>" LOC = T12 ; # JA1
+ NET "parallel_datas<1>" LOC = V12; # JA2  
+ NET "parallel_datas<2>" LOC = N10  ; # JA3
+ NET "parallel_datas<3>" LOC = P11 ; # JA4
+ NET "parallel_datas<4>" LOC = M10 ; # JA7
+ NET "parallel_datas<5>" LOC = N9   ; # JA8
+ NET "parallel_datas<6>" LOC = U11  ; # JA9
+ NET "parallel_datas<7>" LOC = V11 ; # JA10
+ 
+ NET "parallel_datas<8>" LOC = K2 ; # JB1
+ NET "parallel_datas<9>" LOC = K1 ; # JB2
+ NET "parallel_datas<10>" LOC = L4 ; # JB3
+ NET "parallel_datas<11>" LOC = L3 ; # JB4
+ NET "parallel_datas<12>" LOC = J3  ; # JB7
+ NET "parallel_datas<13>" LOC = J1  ; # JB8
+ NET "parallel_datas<14>" LOC = K3 ; # JB9
+ NET "parallel_datas<15>" LOC = K5  ; # JB10
+
+ NET "parallel_clk" LOC = H3 | PULLUP; # JC1
+ NET "parallel_cs" LOC = L7 |  PULLUP; # JC2
+# NET "pmodC<2>" LOC = K6 | IOSTANDARD = LVCMOS33; # JC3
+# NET "pmodC<3>" LOC = G3 | IOSTANDARD = LVCMOS33; # JC4
+# NET "pmodC<4>" LOC = G1 | IOSTANDARD = LVCMOS33; # JC7
+# NET "pmodC<5>" LOC = J7 | IOSTANDARD = LVCMOS33; # JC8
+# NET "pmodC<6>" LOC = J6 | IOSTANDARD = LVCMOS33; # JC9
+# NET "pmodC<7>" LOC = F2 | IOSTANDARD = LVCMOS33; # JC10
+
+# NET "pmodD<0>" LOC = G11 | IOSTANDARD = LVCMOS33; # JD1
+# NET "pmodD<1>" LOC = F10 | IOSTANDARD = LVCMOS33; # JD2
+# NET "pmodD<2>" LOC = F11 | IOSTANDARD = LVCMOS33; # JD3
+# NET "pmodD<3>" LOC = E11 | IOSTANDARD = LVCMOS33; # JD4
+# NET "pmodD<4>" LOC = D12 | IOSTANDARD = LVCMOS33; # JD7
+# NET "pmodD<5>" LOC = C12 | IOSTANDARD = LVCMOS33; # JD8
+# NET "pmodD<6>" LOC = F12 | IOSTANDARD = LVCMOS33; # JD9
+# NET "pmodD<7>" LOC = E12 | IOSTANDARD = LVCMOS33; # JD10
+

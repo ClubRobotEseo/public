@@ -1,0 +1,78 @@
+2018_ACT_EXPANDER
+- 3 exemplaires en nominal dans Big (croix AV, croix AR, ascenseur tri)
+- carte esclave dédiée à chaque actionneur
+- STMF4 nu sur la carte, code le moins intelligent possible, pour la reprogrammer le moins souvent possible
+- elle a juste besoin de savoir qui elle est, on pourrait tout instancier à la volée à partir de la carte actionneur
+- elle reçoit : 
+   * bus CAN (connecteur à définir -> RJ12 ?)
+   * 24V
+   * 12V (RX ou AX selon le cas)
+   * RS485 Rx24 ou AX12 selon le cas
+   * 5V
+- elle pilote :
+   * >= 10 MOS CMS SOT23 (pompes / électrovannes)
+   * >= 5 télémètres ST VL53L0x
+   * >= 5 APDS9960
+   * >= 4 RX24 ou AX12 (en duplicata seulement)
+   * >= 15 LEDs (pour capteurs et MOS)
+   * chaînage du CAN vers la carte suivante (et bouchonnage sur la dernière : CANH<-->60R<-->GND<-->60R<-->CANL)
+- elle inclut donc :
+   * STM32F4 "nu"
+   * connecteur SWD accessible
+   (* GPIO Expander) selon l'humeur du capitaine
+   * I2C Expander
+   * un jeu de résistances du style who_am_i pour différencier les 3 cartes sur le bus CAN
+   * diodes de roue libre sur les MOS
+   * résistances shunt pour mesure du courant des pompes
+- connecteurs "entrants" : 
+   * 5V, 
+   * 24V
+   * servo 3 ou 4 pts (câbage au choix)... incluant le 12V
+   * CAN in (connecteur à identifier... )
+   * CAN out (idem)
+- dans le contexte de l’ascenseur, cette carte ne pilote que les pompes et les électrovannes en direct. Elle pilote les capteurs par un seul bus I2C qui est dispatché sur la partie mobile de l'ascenseur (objectif : réduire le nombre de câbles !) 
+- connecteurs "sortants" : 
+   * APDS9960 : 5V | 2,8V|SCL|reset|SDA|GND   (le 5V sert à la LED de puissance, fournit via un PMOS piloté par un NMOS en pull-down)
+   * ST VL53L0 : 2,8V|SCL|reset|SDA|GND (même connecteur que l'APDS, mais en 5 pts seulement... on choisit au moment du câblage !)
+   * Pompes + EV : 3 voies en 3.81mm ??? 
+        - GND_Pompe | 24V (commun) | GND_EV
+        - (je sais, il y a rupture de compatibilité... mais c'est plus compact que 2 connecteurs 5.08mm et pas trop chiant à visser)
+        - cette solution permet facilement de ne brancher qu'une pompe si on a pas besoin d'électrovanne... 
+        - y'a un truc qui m'emmerde : c'est le même connecteur que les capteurs sur FdP.
+        - ce point est également en attente du test des autres électrovannes...
+- d'un point de vue soft :
+   * toutes les sorties sont init et pilotables via msg CAN
+   * les capteurs doivent être instanciés à distance (un msg CAN d'init qui précise la nature des capteurs sur chaque slot... faisable en 2 octets)
+   * les cartes sont "esclaves", et ne font que répondre à des demandes ponctuelles
+   * toute demande fait l'objet d'une réponse OU d'un acquittement (pour permettre une gestion de timeout sur l'act et la strat... et une remontée des états de santé/présence des capteurs)
+   * j'imagine que c'est plus simple que ce soit la strat qui pilote ces cartes esclaves... inutile de passer via l'actionneur... en gros, ces cartes d'extensions sont des demi-soeurs de la carte actionneur.
+
+
+2018_SENSORS_EXPANDER
+- carte présente sur la partie mobile de l'ascenseur
+- elle reçoit :
+   * connecteur 6 pts dont seulement 4 sont transmis (en gras) : 5V|2,8V|SCL|reset|SDA|GND).. mais on met les 6 pour le respect de la compatibilité
+   * connecteur AX12 3 pts.
+- elle pilote : 
+   * >= 4 APDS9960 avec leurs LEDs (ou capteurs ST, même brochage sans la contrainte de la LED !)
+   * >= 4 Leds d'états
+   * >= 4 LEDs de puissance (commandables via un couple NMOS+PMOS CMS, allumées très ponctuellement pour pas bouffer du jus sur le 5V)
+   * 4 AX12 (en duplicat simple)
+- elle inclut donc :
+   * GPIO Expander
+   * I2C Expander
+   * régulo LDO 2.8V
+(aucune autre forme d'intelligence embarquée, c'est à dire pas de microcontrôleur)
+- l'objectif de cette carte est de réduire au minimum le nombre de câbles au départ de la partie mobile
+   * 4 fils pour la partie capteurs, 3 fils pour la partie servo. = 7 fils vers l'ensemble de la plaque mobile.
+- la forme de ce PCB est étroitement liée à la place dispo et l'emplacement idéal des connecteurs... cette forme sera probablement assez "allongée"
+
+2018_TRACO_12V_5A
+- Il nous faut une carte très simple pour accueillir ces alims compactes  traco 12V 5A.
+- Dans le gros robot, on tente de caser une alim 12V 8A comme d'hab.
+- Dans le petit, on voit si une 5A peut suffire.
+- Dans le panneau LED, une 5A sera utilisée pour l'écran LCD.
+- Cette carte qui fabrique 12V 5A contient :
+   * un connecteur 24V (et des pavés pour souder en grosse violence des arrivées / départ... comme aujourd'hui)
+   * un connecteur 12V (idem)
+   * une led jaune sur le 12V
